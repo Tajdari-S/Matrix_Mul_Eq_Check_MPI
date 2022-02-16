@@ -1,0 +1,632 @@
+#include <stdio.h>
+#include "stdafx.h"
+#include "mpi.h"
+#include <iostream>
+#include <chrono>
+#include <vector>
+#include <math.h>
+#include <algorithm>
+#include <stdlib.h>
+#include <random>
+
+#define matrix_size 100
+#define aqu 1000
+
+using namespace std::chrono;
+
+using namespace std;
+
+int main(int argc, char** argv) {
+
+
+	int finishC = 0;
+	int finishD = 0;
+	int finish2C = 0;
+	int finish2D = 0;
+
+	default_random_engine generator;
+	uniform_int_distribution<int> distribution(0, 1);
+
+	auto start = high_resolution_clock::now();
+	// Initialize the MPI environment
+	MPI_Init(NULL, NULL);
+	// Get the number of processes
+	int world_size;
+	MPI_Comm_size(MPI_COMM_WORLD, &world_size);
+
+	// Get the rank of the process
+	int world_rank;
+	MPI_Comm_rank(MPI_COMM_WORLD, &world_rank);
+
+	if (world_size == 1)
+	{
+		vector<vector<int>> matrixA;
+		vector<vector<int>> matrixB;
+		vector<vector<int>> matrixC;
+		vector<vector<int>> matrixD;
+
+		for (int i = 0; i != matrix_size; i++)
+		{
+			vector<int> temp;
+
+			for (int j = 0; j != matrix_size; j++)
+			{
+				temp.push_back(rand() % 100);
+			}
+
+			matrixA.push_back(temp);
+		}
+		if (matrix_size <11)
+		{
+			cout << "a: " << endl;
+			for (int i = 0; i != matrix_size; i++)
+			{
+				for (int j = 0; j != matrix_size; j++)
+				{
+					cout << matrixA[i][j] << " ";
+				}
+
+				cout << endl;
+			}
+		}
+		for (int i = 0; i != matrix_size; i++)
+		{
+			vector<int> temp;
+
+			for (int j = 0; j != matrix_size; j++)
+			{
+				temp.push_back(rand() % 100);
+			}
+
+			matrixB.push_back(temp);
+		}
+		if (matrix_size < 11)
+		{
+			cout << "b: " << endl;
+			for (int i = 0; i != matrix_size; i++)
+			{
+				for (int j = 0; j != matrix_size; j++)
+				{
+					cout << matrixB[i][j] << " ";
+				}
+
+				cout << endl;
+			}
+		}
+		for (int i = 0; i != matrix_size; i++)
+		{
+			vector<int> temp;
+			vector<int> temp1;
+
+			for (int j = 0; j != matrix_size; j++)
+			{
+				int jam = 0;
+				for (int k = 0; k != matrix_size; k++)
+				{
+					jam += matrixA[i][k] * matrixB[k][j];
+				}
+				temp.push_back(jam);
+				temp1.push_back(matrixA[i][j] + matrixB[i][j]);
+			}
+			matrixC.push_back(temp);
+			matrixD.push_back(temp1);
+			//matrixD.push_back(temp);
+		}
+		//matrixD[matrix_size - 1][matrix_size - 1]++;
+		if (matrix_size < 11)
+		{
+			cout << "c: " << endl;
+			for (int i = 0; i != matrix_size; i++)
+			{
+				for (int j = 0; j != matrix_size; j++)
+				{
+					cout << matrixC[i][j] << " ";
+				}
+
+				cout << endl;
+			}
+
+			cout << "d: " << endl;
+			for (int i = 0; i != matrix_size; i++)
+			{
+				for (int j = 0; j != matrix_size; j++)
+				{
+					cout << matrixD[i][j] << " ";
+				}
+
+				cout << endl;
+			}
+		}
+	
+		for (int i = 0; i != aqu; i++)
+		{
+			vector<int> r;
+
+			for (int j = 0; j != matrix_size; j++)
+			{
+				int x = distribution(generator);
+				if (x > 0.5)
+				{
+					r.push_back(1);
+				}
+				else
+				{
+					r.push_back(0);
+				}
+
+			}
+
+			vector<int> cr;
+			vector<int> dr;
+			vector<int> br;
+			vector<int> abr;
+
+			for (int j = 0; j != matrix_size; j++)
+			{
+				int crtemp = 0;
+				int drtemp = 0;
+				int brtemp = 0;
+				int abrtemp = 0;
+
+				for (int k = 0; k != matrix_size; k++)
+				{
+					crtemp += matrixC[j][k] * r[k];
+					drtemp += matrixD[j][k] * r[k];
+					brtemp += matrixB[j][k] * r[k];
+				}
+				cr.push_back(crtemp);
+				dr.push_back(drtemp);
+				br.push_back(brtemp);
+			}
+			for (int j = 0; j != matrix_size; j++)
+			{
+				int abrtemp = 0;
+
+				for (int k = 0; k != matrix_size; k++)
+				{
+					abrtemp += matrixA[j][k] * br[k];
+				}
+				abr.push_back(abrtemp);
+			}
+			for (int j = 0; j != matrix_size; j++)
+			{
+				if ((abr[j] != dr[j]) && (finishD==0))
+ 				{
+					cout << "A*B != D" << endl;
+					finishD = 1;
+					break;
+				}
+			}
+			for (int j = 0; j != matrix_size; j++)
+			{
+				if ((abr[j] != cr[j]) && finishC==0)
+				{
+					cout << "A*B != C" << endl;
+					finishC = 1;
+					break;
+				}
+			}
+			if (finishD == 1 && finishC == 1)
+			{
+				break;
+			}
+			//cout << " d is and c is " << endl;
+		}
+
+		if (finishD == 0)
+		{
+			cout << " A*B=D " << endl;
+		}
+
+		if (finishC == 0)
+		{
+			cout << " A*B=C " << endl;
+		}
+		
+		
+	}
+	
+	else
+	{
+		int atrans;
+		int btrans;
+		int ctrans;
+		int dtrans;
+
+		MPI_Status stat;
+
+		if (world_rank == 0)
+		{
+			vector<vector<int>> matrixA;
+			vector<vector<int>> matrixB;
+			vector<vector<int>> matrixC;
+			vector<vector<int>> matrixD;
+
+			//build
+
+			for (int i = 0; i != matrix_size; i++)
+			{
+				vector<int> temp;
+
+				for (int j = 0; j != matrix_size; j++)
+				{
+					temp.push_back(rand() % 100);
+				}
+
+				matrixA.push_back(temp);
+			}
+			if (matrix_size <11)
+			{
+				cout << "a: " << endl;
+				for (int i = 0; i != matrix_size; i++)
+				{
+					for (int j = 0; j != matrix_size; j++)
+					{
+						cout << matrixA[i][j] << " ";
+					}
+
+					cout << endl;
+				}
+			}
+			for (int i = 0; i != matrix_size; i++)
+			{
+				vector<int> temp;
+
+				for (int j = 0; j != matrix_size; j++)
+				{
+					temp.push_back(rand() % 100);
+				}
+
+				matrixB.push_back(temp);
+			}
+			if (matrix_size < 11)
+			{
+				cout << "b: " << endl;
+				for (int i = 0; i != matrix_size; i++)
+				{
+					for (int j = 0; j != matrix_size; j++)
+					{
+						cout << matrixB[i][j] << " ";
+					}
+
+					cout << endl;
+				}
+			}
+			for (int i = 0; i != matrix_size; i++)
+			{
+				vector<int> temp;
+				vector<int> temp1;
+
+				for (int j = 0; j != matrix_size; j++)
+				{
+					int jam = 0;
+					for (int k = 0; k != matrix_size; k++)
+					{
+						jam += matrixA[i][k] * matrixB[k][j];
+					}
+					temp.push_back(jam);
+					temp1.push_back(matrixA[i][j] + matrixB[i][j]);
+				}
+				matrixC.push_back(temp);
+				matrixD.push_back(temp1);
+				//matrixD.push_back(temp);
+			}
+			//matrixD[matrix_size - 1][matrix_size - 1]++;
+			if (matrix_size < 11)
+			{
+				cout << "c: " << endl;
+				for (int i = 0; i != matrix_size; i++)
+				{
+					for (int j = 0; j != matrix_size; j++)
+					{
+						cout << matrixC[i][j] << " ";
+					}
+
+					cout << endl;
+				}
+
+				cout << "d: " << endl;
+				for (int i = 0; i != matrix_size; i++)
+				{
+					for (int j = 0; j != matrix_size; j++)
+					{
+						cout << matrixD[i][j] << " ";
+					}
+
+					cout << endl;
+				}
+			}
+
+			//send
+
+			for (int i = 0; i != matrix_size; i++)
+			{
+				for (int j = 0; j != matrix_size; j++)
+				{
+					atrans = matrixA[i][j];
+					MPI_Send(&atrans, matrix_size, MPI_DOUBLE, 1, 1, MPI_COMM_WORLD);
+					btrans = matrixB[i][j];
+					MPI_Send(&btrans, matrix_size, MPI_DOUBLE, 1, 1, MPI_COMM_WORLD);
+					ctrans = matrixC[i][j];
+					MPI_Send(&ctrans, matrix_size, MPI_DOUBLE, 1, 1, MPI_COMM_WORLD);
+					dtrans = matrixD[i][j];
+					MPI_Send(&dtrans, matrix_size, MPI_DOUBLE, 1, 1, MPI_COMM_WORLD);
+				}
+				
+			}
+
+			//calc
+			for (int i = 0; i != aqu/2 ; i++)
+			{
+				vector<int> r;
+
+				for (int j = 0; j != matrix_size; j++)
+				{
+					int x = distribution(generator);
+					if (x > 0.5)
+					{
+						r.push_back(1);
+					}
+					else
+					{
+						r.push_back(0);
+					}
+
+				}
+
+				vector<int> cr;
+				vector<int> dr;
+				vector<int> br;
+				vector<int> abr;
+
+				for (int j = 0; j != matrix_size; j++)
+				{
+					int crtemp = 0;
+					int drtemp = 0;
+					int brtemp = 0;
+					int abrtemp = 0;
+
+					for (int k = 0; k != matrix_size; k++)
+					{
+						crtemp += matrixC[j][k] * r[k];
+						drtemp += matrixD[j][k] * r[k];
+						brtemp += matrixB[j][k] * r[k];
+					}
+					cr.push_back(crtemp);
+					dr.push_back(drtemp);
+					br.push_back(brtemp);
+				}
+				for (int j = 0; j != matrix_size; j++)
+				{
+					int abrtemp = 0;
+
+					for (int k = 0; k != matrix_size; k++)
+					{
+						abrtemp += matrixA[j][k] * br[k];
+					}
+					abr.push_back(abrtemp);
+				}
+
+				for (int j = 0; j != matrix_size; j++)
+				{
+					if ((abr[j] != dr[j]) && finishD==0)
+					{
+						cout << "A*B != D" << endl;
+						finishD = 1;
+						break;
+					}
+				}
+				for (int j = 0; j != matrix_size; j++)
+				{
+					if ((abr[j] != cr[j]) && finishC==0)
+					{
+						cout << "A*B != C" << endl;
+						finishC = 1;
+						break;
+					}
+				}
+				if (finishD == 1 && finishC == 1)
+				{
+					break;
+				}
+				//cout << " d is and c is " << endl;
+			}
+
+			if (finishD == 0 && finish2D==0)
+			{
+				cout << " A*B=D " << endl;
+			}
+
+			if (finishC == 0 && finish2C==0)
+			{
+				cout << " A*B=C " << endl;
+			}
+
+
+			//	MPI_Send(&finish, matrix_size, MPI_DOUBLE, 1, 1, MPI_COMM_WORLD);
+				//cout << "me";
+				//MPI_Recv(&finish2, matrix_size, MPI_DOUBLE, 0, 1, MPI_COMM_WORLD, &stat);
+				//cout << "u";
+		}
+
+		if (world_rank == 1)
+		{
+			vector<vector<int>> matrixA;
+			vector<vector<int>> matrixB;
+			vector<vector<int>> matrixC;
+			vector<vector<int>> matrixD;
+
+			//rcv
+
+			for (int i = 0; i != matrix_size; i++)
+			{
+				vector<int> tempa;
+				vector<int> tempb;
+				vector<int> tempc;
+				vector<int> tempd;
+
+				for (int j = 0; j != matrix_size; j++)
+				{
+
+					MPI_Recv(&atrans, matrix_size, MPI_DOUBLE, 0, 1, MPI_COMM_WORLD, &stat);
+					tempa.push_back(atrans);
+					MPI_Recv(&btrans, matrix_size, MPI_DOUBLE, 0, 1, MPI_COMM_WORLD, &stat);
+					tempb.push_back(btrans);
+					MPI_Recv(&ctrans, matrix_size, MPI_DOUBLE, 0, 1, MPI_COMM_WORLD, &stat);
+					tempc.push_back(ctrans);
+					MPI_Recv(&dtrans, matrix_size, MPI_DOUBLE, 0, 1, MPI_COMM_WORLD, &stat);
+					tempd.push_back(dtrans);
+
+				}
+
+				matrixA.push_back(tempa);
+				matrixB.push_back(tempb);
+				matrixC.push_back(tempc);
+				matrixD.push_back(tempd);
+			}
+
+			//ctime
+			auto communication = high_resolution_clock::now();
+			auto comt = duration_cast<microseconds>(communication - start);
+			cout << "Communication: " << comt.count() << "microsec" << endl;
+			//check
+			if (matrix_size < 11)
+			{
+				cout << "a: " << endl;
+				for (int i = 0; i != matrix_size; i++)
+				{
+					for (int j = 0; j != matrix_size; j++)
+					{
+						cout << matrixA[i][j] << " ";
+					}
+
+					cout << endl;
+				}
+				cout << "b: " << endl;
+				for (int i = 0; i != matrix_size; i++)
+				{
+					for (int j = 0; j != matrix_size; j++)
+					{
+						cout << matrixB[i][j] << " ";
+					}
+
+					cout << endl;
+				}
+			}
+
+			//calc
+			for (int i = 0; i != aqu/2 ; i++)
+			{
+				vector<int> r;
+
+				for (int j = 0; j != matrix_size; j++)
+				{
+					int x = distribution(generator);
+					if (x > 0.5)
+					{
+						r.push_back(1);
+					}
+					else
+					{
+						r.push_back(0);
+					}
+
+				}
+
+				vector<int> cr;
+				vector<int> dr;
+				vector<int> br;
+				vector<int> abr;
+
+				for (int j = 0; j != matrix_size; j++)
+				{
+					int crtemp = 0;
+					int drtemp = 0;
+					int brtemp = 0;
+					int abrtemp = 0;
+
+					for (int k = 0; k != matrix_size; k++)
+					{
+						crtemp += matrixC[j][k] * r[k];
+						drtemp += matrixD[j][k] * r[k];
+						brtemp += matrixB[j][k] * r[k];
+					}
+					cr.push_back(crtemp);
+					dr.push_back(drtemp);
+					br.push_back(brtemp);
+				}
+				for (int j = 0; j != matrix_size; j++)
+				{
+					int abrtemp = 0;
+
+					for (int k = 0; k != matrix_size; k++)
+					{
+						abrtemp += matrixA[j][k] * br[k];
+					}
+					abr.push_back(abrtemp);
+				}
+				for (int j = 0; j != matrix_size; j++)
+				{
+					if ((abr[j] != dr[j])&&(finish2D==0))
+					{
+						cout << "A*B != D" << endl;
+						finish2D = 1;
+						break;
+					}
+				}
+				for (int j = 0; j != matrix_size; j++)
+				{
+					if ((abr[j] != cr[j])&& (finish2C==0))
+					{
+						cout << "A*B != C" << endl;
+						finish2C = 1;
+						break;
+					}
+				}
+				if (finish2D == 1 && finish2C == 1)
+				{
+					break;
+				}
+				//cout << " d is and c is " << endl;
+			}
+
+			if (finishD == 0 && finish2D == 0)
+			{
+				cout << " A*B=D " << endl;
+			}
+
+			if (finishC == 0 && finish2C == 0)
+			{
+				cout << " A*B=C " << endl;
+			}
+			//	cout << "nn";
+			//	MPI_Recv(&finish, matrix_size, MPI_DOUBLE, 0, 1, MPI_COMM_WORLD, &stat);
+			//	cout << "jj";
+			//	MPI_Send(&finish2, matrix_size, MPI_DOUBLE, 1, 1, MPI_COMM_WORLD);
+			//	cout << "jjjj";
+
+			
+		}
+	}
+
+	// Print off a hello world message
+	printf("Hello world from processor rank %d out of %d processors\n",
+		 world_rank, world_size);
+
+	// Finalize the MPI environment.
+	MPI_Finalize();
+
+	auto stop = high_resolution_clock::now();
+
+	auto duration = duration_cast<microseconds>(stop - start);
+
+	// To get the value of duration use the count()
+	// member function on the duration object
+	cout << duration.count() <<" microseconds" << endl;
+
+	int a;
+
+	std::cin>>a;
+
+	return 0;
+}
